@@ -372,7 +372,7 @@ const angAt=p=>(Math.atan2(p.y,p.x)*180/Math.PI+90+360)%360;
 let drag=null;
 svg.addEventListener("pointerdown",ev=>{cancelAnimationFrame(anim);const p=svgPoint(ev);drag={a:angAt(p),rot:S.rot,x:ev.clientX,y:ev.clientY,moved:false,target:ev.target,p};svg.setPointerCapture(ev.pointerId);});
 svg.addEventListener("pointermove",ev=>{
-  if(!drag){hover(ev);return;}
+  if(!drag){hover(ev);return;} //dd
   if(!drag.moved&&Math.hypot(ev.clientX-drag.x,ev.clientY-drag.y)<5)return;
   drag.moved=true;svg.classList.add("dragging");hideTip();
   const r=Math.hypot(drag.p.x,drag.p.y);if(r<40)return;
