@@ -126,8 +126,15 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--orange);outline-
 /* ---------- Month view (on the stage) ---------- */
 .wheelview{display:flex;flex-direction:column;gap:14px}
 #wheel .lbl{pointer-events:none}
-.mhit{cursor:zoom-in}
-.mhit:hover{fill:rgba(227,255,0,.14)}
+.mgrp{cursor:pointer}
+.mgrp path,.mgrp text{transition:fill .15s ease}
+.mgrp:hover path{fill:rgba(227,255,0,.24)}
+.mgrp:hover text{fill:#E3FF00}
+#wheel.dragging .mgrp{cursor:grabbing}
+.evdot{transform-box:fill-box;transform-origin:center;transition:transform .15s ease}
+.evdot:hover{transform:scale(1.3)}
+.evdot:hover circle{stroke:#E3FF00;stroke-width:2.5}
+.mv-t{font-weight:600;margin-right:4px;font-variant-numeric:tabular-nums}
 .monthview{display:flex;flex-direction:column;gap:14px;min-width:0}
 .mv-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .mv-title{font-family:var(--f-display);font-weight:800;font-size:26px;margin:0 auto 0 0;color:var(--on-dark)}
@@ -226,6 +233,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--orange);outline-
         <label class="full">Titel<input id="fTitle" required maxlength="80" placeholder="Fx julefrokost"></label>
         <label>Fra dato<input id="fStart" type="date" required></label>
         <label>Til dato (valgfri)<input id="fEnd" type="date"></label>
+        <label>Fra kl. (valgfri)<input id="fTime" type="time"></label>
+        <label>Til kl. (valgfri)<input id="fEndTime" type="time"></label>
         <fieldset class="full catfield"><legend>Kategori</legend><div class="catpick" id="fCat"></div></fieldset>
         <label class="full">Note (valgfri)<textarea id="fNote" maxlength="400" placeholder="Sted, ansvarlig, link …"></textarea></label>
         <div class="formbtns">
@@ -305,6 +314,8 @@ function isoWeek(d){const t=new Date(d);const day=(t.getUTCDay()+6)%7;t.setUTCDa
 const quarter=d=>Math.floor(d.getUTCMonth()/3)+1;
 const fmtLong=d=>`${WDAYS[d.getUTCDay()]} ${d.getUTCDate()}. ${MONTHS[d.getUTCMonth()].toLowerCase()}`;
 const fmtShort=d=>`${d.getUTCDate()}. ${MSHORT[d.getUTCMonth()]}`;
+const fmtTime=e=>e.time?(e.endTime?`${e.time}–${e.endTime}`:`kl. ${e.time}`):"";
+const evLabel=e=>esc(e.title)+(e.time?` (${fmtTime(e)})`:"");
 function easter(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;return new Date(Date.UTC(y,mo-1,da));}
 function holidays(y){const e=easter(y);const mk=(d,t)=>({id:"h-"+iso(d),title:t,start:iso(d),end:"",cat:HOLIDAY_CAT,holiday:true});
   return [mk(new Date(Date.UTC(y,0,1)),"Nytårsdag"),mk(addDays(e,-3),"Skærtorsdag"),mk(addDays(e,-2),"Langfredag"),mk(e,"Påskedag"),mk(addDays(e,1),"2. påskedag"),
@@ -341,11 +352,13 @@ function render(){
     h+=`<path d="${arc(a0,a1,R.qOut,R.qIn)}" fill="${qCol[q]}"/>`;
     h+=`<text class="lbl" data-a="${(a0+a1)/2}" data-r="${(R.qOut+R.qIn)/2}" font-size="22" font-weight="700" fill="#E3FF00" letter-spacing="3" text-anchor="middle" dominant-baseline="central">Q${q+1}</text>`;}
   // months
+  let seps="";
   for(let m=0;m<12;m++){const a0=angOfDay(dayOfYear(new Date(Date.UTC(y,m,1)))),a1=angOfDay(m===11?n:dayOfYear(new Date(Date.UTC(y,m+1,1))));
-    h+=`<path class="mhit" d="${arc(a0,a1,R.mOut,R.mIn)}" fill="${m%2?"rgba(255,255,255,.05)":"rgba(255,255,255,.1)"}"/>`;
+    h+=`<g class="mgrp"><title>Åbn ${MONTHS[m].toLowerCase()} som kalender</title><path d="${arc(a0,a1,R.mOut,R.mIn)}" fill="${m%2?"rgba(255,255,255,.05)":"rgba(255,255,255,.1)"}"/>`;
+    h+=`<text class="lbl" data-a="${(a0+a1)/2}" data-r="${(R.mOut+R.mIn)/2}" font-size="17" font-weight="600" fill="#FFFFFF" letter-spacing="1.5" text-anchor="middle" dominant-baseline="central">${MONTHS[m].toUpperCase()}</text></g>`;
     const [x0,y0]=pt(a0,R.qOut),[x1,y1]=pt(a0,R.cIn);
-    h+=`<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="rgba(255,255,255,${m%3===0?.45:.16})" stroke-width="${m%3===0?2:1}"/>`;
-    h+=`<text class="lbl" data-a="${(a0+a1)/2}" data-r="${(R.mOut+R.mIn)/2}" font-size="17" font-weight="600" fill="#FFFFFF" letter-spacing="1.5" text-anchor="middle" dominant-baseline="central">${MONTHS[m].toUpperCase()}</text>`;}
+    seps+=`<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="rgba(255,255,255,${m%3===0?.45:.16})" stroke-width="${m%3===0?2:1}"/>`;}
+  h+=seps;
   // days
   const ti=todayIdx();
   for(let d=0;d<n;d++){const date=addDays(new Date(Date.UTC(y,0,1)),d),wd=date.getUTCDay(),a=angOfDay(d+.5);
@@ -368,8 +381,8 @@ function render(){
       if(e.holiday){if(d1===d0)h+=`<circle ${tag} cx="${x}" cy="${yy}" r="${Math.min(w*.32,11)*.7}" fill="none" stroke="${c.color}" stroke-width="2"/>`;return;}
       // icon disc at the start date, drawn above all arcs; the icon is kept upright in applyRot
       const rr=Math.min(w*.42,18),sz=rr*1.2;
-      top+=`<circle ${tag} cx="${x}" cy="${yy}" r="${rr.toFixed(1)}" fill="${c.color}" stroke="#191919" stroke-width="1.5"/>`+
-        `<g class="ico" data-x="${x}" data-y="${yy}"><use href="#i-${catIcon(c)}" x="${(-sz/2).toFixed(1)}" y="${(-sz/2).toFixed(1)}" width="${sz.toFixed(1)}" height="${sz.toFixed(1)}" style="color:#191919;stroke-width:2.6"/></g>`;
+      top+=`<g class="evdot"><circle ${tag} cx="${x}" cy="${yy}" r="${rr.toFixed(1)}" fill="${c.color}" stroke="#191919" stroke-width="1.5"/>`+
+        `<g class="ico" data-x="${x}" data-y="${yy}"><use href="#i-${catIcon(c)}" x="${(-sz/2).toFixed(1)}" y="${(-sz/2).toFixed(1)}" width="${sz.toFixed(1)}" height="${sz.toFixed(1)}" style="color:#191919;stroke-width:2.6"/></g></g>`;
     });});
   h+=top;
   // today marker
@@ -399,8 +412,8 @@ function updateFocus(){
   const top=$("hubTop"),day=$("hubDay"),sub=$("hubSub");
   if(top){top.textContent=isT?"I DAG":`UGE ${isoWeek(fd)} · Q${quarter(fd)}`;day.textContent=fd.getUTCDate()+". "+MSHORT[fd.getUTCMonth()];sub.textContent=isT?`${WDAYS[fd.getUTCDay()]} · uge ${isoWeek(fd)} · Q${quarter(fd)}`:WDAYS[fd.getUTCDay()];}
   const evs=allEvents().filter(e=>{const s=e.start,en=e.end||e.start;return iso(fd)>=s&&iso(fd)<=en;});
-  $("focusLine").innerHTML=isT?(evs.length?`<strong>I dag:</strong> ${evs.map(e=>esc(e.title)).join(", ")}`:"Intet i hjulet i dag."):
-    `Hjulet peger på <strong>${fmtLong(fd)} ${S.year}</strong>${evs.length?": "+evs.map(e=>esc(e.title)).join(", "):"."}`;
+  $("focusLine").innerHTML=isT?(evs.length?`<strong>I dag:</strong> ${evs.map(evLabel).join(", ")}`:"Intet i hjulet i dag."):
+    `Hjulet peger på <strong>${fmtLong(fd)} ${S.year}</strong>${evs.length?": "+evs.map(evLabel).join(", "):"."}`;
 }
 
 /* ---------- rotation & interaction ---------- */
@@ -443,7 +456,7 @@ svg.addEventListener("pointerleave",hideTip);
 const tip=$("tip");
 function hover(ev){const t=ev.target;if(!(t.classList&&t.classList.contains("ev"))){hideTip();return;}
   const e=allEvents().find(x=>x.id===t.dataset.id);if(!e)return;const c=S.cats.find(c=>c.id===e.cat);
-  tip.innerHTML=`<b>${esc(e.title)}</b><span>${fmtShort(parse(e.start))}${e.end&&e.end!==e.start?" – "+fmtShort(parse(e.end)):""} · ${esc(c?c.name:"")}</span>${e.note?`<div>${esc(e.note)}</div>`:""}`;
+  tip.innerHTML=`<b>${esc(e.title)}</b><span>${fmtShort(parse(e.start))}${e.end&&e.end!==e.start?" – "+fmtShort(parse(e.end)):""}${e.time?" · "+fmtTime(e):""} · ${esc(c?c.name:"")}</span>${e.note?`<div>${esc(e.note)}</div>`:""}`;
   tip.hidden=false;const x=Math.min(ev.clientX+14,innerWidth-260),y=Math.min(ev.clientY+14,innerHeight-90);tip.style.left=x+"px";tip.style.top=y+"px";}
 function hideTip(){tip.hidden=true;}
 
@@ -461,10 +474,10 @@ function renderMonth(){const {y,m}=S.mv;$("mvTitle").innerHTML=`${MONTHS[m]} <sp
   for(let i=0;i<cells;i++){const d=addDays(first,i-lead),ds=iso(d),wd=d.getUTCDay();
     if(i%7===0)h+=`<div class="mv-wk">${isoWeek(d)}</div>`;
     if(d.getUTCMonth()!==m){h+=`<div class="mv-day out"><span class="mv-n">${d.getUTCDate()}</span></div>`;continue;}
-    const list=evs.filter(e=>ds>=e.start&&ds<=(e.end||e.start)).sort((a,b)=>(b.holiday?1:0)-(a.holiday?1:0)||a.start.localeCompare(b.start));
+    const list=evs.filter(e=>ds>=e.start&&ds<=(e.end||e.start)).sort((a,b)=>(b.holiday?1:0)-(a.holiday?1:0)||(a.time||"").localeCompare(b.time||"")||a.start.localeCompare(b.start));
     h+=`<div class="mv-day${wd===0||wd===6?" we":""}${ds===TODAY_ISO?" today":""}" data-date="${ds}">
       <button class="mv-n" aria-label="${S.canWrite?"Tilføj ":""}${fmtLong(d)}">${d.getUTCDate()}</button>
-      ${list.map(e=>{const c=S.cats.find(c=>c.id===e.cat);return `<button class="mv-ev${e.holiday?" hol":""}" data-open="${esc(e.id)}" style="--c:${c?c.color:"#ccc"}" title="${esc(e.title)}">${icon(catIcon(c))}${esc(e.title)}</button>`;}).join("")}</div>`;}
+      ${list.map(e=>{const c=S.cats.find(c=>c.id===e.cat);return `<button class="mv-ev${e.holiday?" hol":""}" data-open="${esc(e.id)}" style="--c:${c?c.color:"#ccc"}" title="${evLabel(e)}">${icon(catIcon(c))}${ds===e.start&&e.time?`<b class="mv-t">${e.time}</b>`:""}${esc(e.title)}</button>`;}).join("")}</div>`;}
   $("mvGrid").innerHTML=h;}
 $("mvGrid").addEventListener("click",ev=>{const o=ev.target.closest("[data-open]");
   if(o){const e=S.events.find(x=>x.id===o.dataset.open);if(e)openEvent(e.id);else F.msg.textContent=`${o.textContent} er en fast helligdag og beregnes automatisk.`;return;}
@@ -491,11 +504,11 @@ function renderPanel(){
       ${S.canWrite?`<button class="mini" data-edit="${c.id}">Redigér</button>`:"<span></span>"}</div>`;}).join("")+(S.catEdit==="__new"?catEditor({id:"__new",name:"",color:SWATCHES[S.cats.length%SWATCHES.length],icon:"stjerne"}):"");
   $("addCat").hidden=!S.canWrite||S.cats.length>=8;
   // upcoming
-  const up=allEvents().filter(e=>(e.end||e.start)>=TODAY_ISO).sort((a,b)=>a.start.localeCompare(b.start)).slice(0,12);
+  const up=allEvents().filter(e=>(e.end||e.start)>=TODAY_ISO).sort((a,b)=>(a.start+(a.time||"")).localeCompare(b.start+(b.time||""))).slice(0,12);
   $("upCount").textContent=S.events.length?`${S.events.length} i hjulet`:"";
   $("upList").innerHTML=up.length?up.map(e=>{const s=parse(e.start),c=S.cats.find(c=>c.id===e.cat);
     return `<button class="item" data-open="${esc(e.id)}"><span class="d">${s.getUTCDate()}<small>${MSHORT[s.getUTCMonth()]}${s.getUTCFullYear()!==TODAY.getUTCFullYear()?" "+String(s.getUTCFullYear()).slice(2):""}</small></span>
-      <span style="min-width:0"><span class="t">${esc(e.title)}</span><span class="m">${badge(c,"sm")}${esc(c?c.name:"")}${e.end&&e.end!==e.start?" · til "+fmtShort(parse(e.end)):""}${e.holiday?" · helligdag":""}</span></span></button>`;}).join("")
+      <span style="min-width:0"><span class="t">${esc(e.title)}</span><span class="m">${badge(c,"sm")}${esc(c?c.name:"")}${e.end&&e.end!==e.start?" · til "+fmtShort(parse(e.end)):""}${e.time?" · "+fmtTime(e):""}${e.holiday?" · helligdag":""}</span></span></button>`;}).join("")
     :`<p class="empty">Intet planlagt endnu. Tilføj den første aftale ovenfor, eller klik direkte på en ring i hjulet.</p>`;
 }
 function catEditor(c){return `<div class="catedit" data-catform="${c.id}">
@@ -531,13 +544,13 @@ const catPick={
   set value(v){const r=[...$("fCat").querySelectorAll("input")].find(x=>x.value===v);if(r)r.checked=true;},
   set disabled(d){$("fCat").querySelectorAll("input").forEach(x=>x.disabled=d);}
 };
-const F={title:$("fTitle"),start:$("fStart"),end:$("fEnd"),cat:catPick,note:$("fNote"),save:$("fSave"),cancel:$("fCancel"),del:$("fDelete"),msg:$("fMsg")};
+const F={title:$("fTitle"),start:$("fStart"),end:$("fEnd"),time:$("fTime"),endTime:$("fEndTime"),cat:catPick,note:$("fNote"),save:$("fSave"),cancel:$("fCancel"),del:$("fDelete"),msg:$("fMsg")};
 function resetForm(){S.editing=null;$("evForm").reset();F.start.value=TODAY_ISO;if(!F.cat.value&&S.cats.length)F.cat.value=S.cats[0].id;F.save.textContent="Tilføj";F.cancel.hidden=true;F.del.hidden=true;$("formHead").textContent="Tilføj til hjulet";F.msg.textContent="";lockForm();}
-function lockForm(){const ro=!S.canWrite;[F.title,F.start,F.end,F.cat,F.note,F.save,F.del].forEach(x=>x.disabled=ro);if(ro)F.msg.textContent="Du har læseadgang. Bed ejeren om Contributor-adgang for at skrive i hjulet.";}
+function lockForm(){const ro=!S.canWrite;[F.title,F.start,F.end,F.time,F.endTime,F.cat,F.note,F.save,F.del].forEach(x=>x.disabled=ro);if(ro)F.msg.textContent="Du har læseadgang. Bed ejeren om Contributor-adgang for at skrive i hjulet.";}
 function newAt(date,cat){resetForm();F.start.value=date;F.cat.value=cat;$("formHead").textContent=`Tilføj ${fmtShort(parse(date))}`;F.title.focus({preventScroll:false});F.title.scrollIntoView({block:"center",behavior:"smooth"});}
 function openEvent(id){const e=allEvents().find(x=>x.id===id);if(!e)return;
   if(e.holiday){F.msg.textContent=`${e.title} er en fast helligdag og beregnes automatisk.`;return;}
-  S.editing=id;F.title.value=e.title;F.start.value=e.start;F.end.value=e.end||"";F.cat.value=e.cat;F.note.value=e.note||"";
+  S.editing=id;F.title.value=e.title;F.start.value=e.start;F.end.value=e.end||"";F.cat.value=e.cat;F.note.value=e.note||"";F.time.value=e.time||"";F.endTime.value=e.endTime||"";
   F.save.textContent="Gem ændringer";F.cancel.hidden=false;F.del.hidden=false;$("formHead").textContent="Redigér";F.msg.textContent="";lockForm();
   F.title.scrollIntoView({block:"center",behavior:"smooth"});}
 F.cancel.onclick=resetForm;
@@ -549,7 +562,10 @@ $("evForm").addEventListener("submit",async ev=>{ev.preventDefault();if(!S.canWr
   const title=F.title.value.trim(),start=F.start.value,end=F.end.value&&F.end.value!==start?F.end.value:"";
   if(!title||!start){F.msg.textContent="Titel og dato skal udfyldes.";return;}
   if(end&&end<start){F.msg.textContent="Slutdatoen ligger før startdatoen.";return;}
-  const body={title,start,end,cat:F.cat.value,note:F.note.value.trim(),updatedAt:new Date().toISOString()};
+  const time=F.time.value,endTime=F.endTime.value;
+  if(endTime&&!time){F.msg.textContent="Udfyld også fra-klokkeslæt.";return;}
+  if(endTime&&!end&&endTime<=time){F.msg.textContent="Slut-klokkeslættet ligger før start.";return;}
+  const body={title,start,end,time,endTime,cat:F.cat.value,note:F.note.value.trim(),updatedAt:new Date().toISOString()};
   const id=S.editing||("e"+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
   F.save.disabled=true;
   let stored=true;

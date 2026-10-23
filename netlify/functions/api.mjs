@@ -10,6 +10,7 @@ const KEY = "wheel";
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const COLOR = /^#[0-9A-Fa-f]{6}$/;
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const MAX_EVENTS = 2000;
 
 const json = (data, status = 200) => Response.json(data, { status, headers: { "cache-control": "no-store" } });
@@ -27,9 +28,12 @@ function cleanEvent(b) {
   const title = String(b.title ?? "").trim().slice(0, 80);
   const start = String(b.start ?? "");
   const end = b.end ? String(b.end) : "";
+  const time = b.time ? String(b.time) : "";
+  const endTime = b.endTime ? String(b.endTime) : "";
   if (!title || !DATE.test(start) || (end && (!DATE.test(end) || end < start))) return null;
+  if ((time && !TIME.test(time)) || (endTime && (!time || !TIME.test(endTime)))) return null;
   return {
-    title, start, end,
+    title, start, end, time, endTime,
     cat: String(b.cat ?? "").slice(0, 64),
     note: String(b.note ?? "").slice(0, 400),
     updatedAt: new Date().toISOString(),
