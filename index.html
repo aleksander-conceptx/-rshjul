@@ -78,6 +78,15 @@ label{display:flex;flex-direction:column;gap:4px;font:600 11px/1.2 var(--f-body)
 input,select,textarea{font:400 14px/1.3 var(--f-body);color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
 textarea{resize:vertical;min-height:56px}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--orange);outline-offset:0;border-color:transparent}
+.catfield{border:0;margin:0;padding:0;min-width:0}
+.catfield legend{font:600 11px/1.2 var(--f-body);color:var(--ink-2);padding:0;margin-bottom:6px}
+.catpick{display:flex;flex-wrap:wrap;gap:6px}
+.catpick label{position:relative;flex-direction:row;align-items:center;gap:8px;padding:4px 12px 4px 4px;border:1px solid var(--line);background:var(--paper);border-radius:999px;cursor:pointer;font:500 13px/1.2 var(--f-body);color:var(--ink)}
+.catpick label:hover{border-color:var(--ink-3)}
+.catpick input{position:absolute;opacity:0;width:1px;height:1px;margin:0;padding:0;pointer-events:none}
+.catpick label:has(input:checked){border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.catpick label:has(input:focus-visible){outline:2px solid var(--orange);outline-offset:2px}
+.catpick label:has(input:disabled){opacity:.5;cursor:not-allowed}
 .formbtns{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .btn{appearance:none;border:0;border-radius:999px;padding:10px 18px;font:600 13px/1 var(--f-body);cursor:pointer;background:var(--ink);color:var(--paper)}
 .btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
@@ -138,6 +147,20 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--orange);outline-
 .mv-ev:hover{background:rgba(255,255,255,.18)}
 .mv-ev.hol{background:transparent;color:var(--on-dark-2);font-style:italic}
 .mv-n:focus-visible,.mv-ev:focus-visible{outline:2px solid var(--yellow);outline-offset:1px}
+.mv-ev .icn{display:inline-block;width:12px;height:12px;vertical-align:-2px;margin-right:4px;color:var(--c);stroke-width:2.4}
+
+/* ---------- Category icons ---------- */
+.icn{width:1em;height:1em;display:block;stroke-width:2}
+#wheel .ico{pointer-events:none}
+.badge{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none;color:var(--ink);font-size:14px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+.badge.sm{width:16px;height:16px;font-size:10px}
+.badge.sm .icn{stroke-width:2.6}
+.cat.off .badge{opacity:.4}
+.icons{display:flex;gap:6px;flex-wrap:wrap;grid-column:1/-1}
+.icons button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:16px;padding:0}
+.icons button:hover{border-color:var(--ink-3)}
+.icons button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.icons button:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -203,7 +226,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--orange);outline-
         <label class="full">Titel<input id="fTitle" required maxlength="80" placeholder="Fx julefrokost"></label>
         <label>Fra dato<input id="fStart" type="date" required></label>
         <label>Til dato (valgfri)<input id="fEnd" type="date"></label>
-        <label class="full">Kategori<select id="fCat"></select></label>
+        <fieldset class="full catfield"><legend>Kategori</legend><div class="catpick" id="fCat"></div></fieldset>
         <label class="full">Note (valgfri)<textarea id="fNote" maxlength="400" placeholder="Sted, ansvarlig, link …"></textarea></label>
         <div class="formbtns">
           <button class="btn" id="fSave" type="submit">Tilføj</button>
@@ -227,6 +250,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--orange);outline-
   </div>
 </div>
 <div class="tip" id="tip" hidden></div>
+<svg id="sprite" width="0" height="0" style="position:absolute" aria-hidden="true"></svg>
 
 <script>
 (() => {
@@ -235,13 +259,36 @@ const MONTHS=["Januar","Februar","Marts","April","Maj","Juni","Juli","August","S
 const MSHORT=["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"];
 const WDAYS=["søndag","mandag","tirsdag","onsdag","torsdag","fredag","lørdag"];
 const SWATCHES=["#E3FF00","#FFFFFF","#5FB4C9","#D9C9A3","#9FB0B0","#B7E07A","#8FD3C1","#C9B6E8"];
+const DEFAULT_ICON={kunder:"megafon",events:"fest",deadlines:"ur",content:"post",ferie:"sol"};
 const DEFAULT_CATS=[
-  {id:"kunder",name:"Kampagner & kunder",color:"#E3FF00"},
-  {id:"events",name:"Events & sociale",color:"#FFFFFF"},
-  {id:"deadlines",name:"Deadlines",color:"#5FB4C9"},
-  {id:"content",name:"Content & nyhedsbrev",color:"#D9C9A3"},
-  {id:"ferie",name:"Ferie & helligdage",color:"#9FB0B0"}
+  {id:"kunder",name:"Kampagner & kunder",color:"#E3FF00",icon:"megafon"},
+  {id:"events",name:"Events & sociale",color:"#FFFFFF",icon:"fest"},
+  {id:"deadlines",name:"Deadlines",color:"#5FB4C9",icon:"ur"},
+  {id:"content",name:"Content & nyhedsbrev",color:"#D9C9A3",icon:"post"},
+  {id:"ferie",name:"Ferie & helligdage",color:"#9FB0B0",icon:"sol"}
 ];
+/* line icons, 24×24, drawn with currentColor */
+const ICONS={
+  megafon:["Megafon","M3 11v2a1 1 0 0 0 1 1h2l5 4V6l-5 4H4a1 1 0 0 0-1 1zM15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"],
+  fest:["Fest","M8 3h8l-1 6a3 3 0 0 1-6 0L8 3zM12 12v8M8 21h8"],
+  ur:["Deadline","M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 7v5l3 2"],
+  post:["Nyhedsbrev","M3 6h18v12H3zM3 7l9 6 9-6"],
+  sol:["Ferie","M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"],
+  folk:["Team","M9 11a3.5 3.5 0 1 0 0-7a3.5 3.5 0 1 0 0 7zM2 20a7 7 0 0 1 14 0M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14a6 6 0 0 1 4 6"],
+  stjerne:["Stjerne","M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"],
+  flag:["Milepæl","M5 21V4M5 4h11l-2 4 2 4H5"],
+  kalender:["Møde","M4 5h16v16H4zM4 10h16M8 3v4M16 3v4"],
+  mappe:["Projekt","M3 7h18v13H3zM9 7V4h6v3M3 12h18"],
+  ide:["Idé","M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"],
+  graf:["Rapport","M4 20V10M10 20V4M16 20v-7M3 20h18"],
+  hjerte:["Kultur","M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"],
+  gave:["Gave","M4 10h16v10H4zM3 7h18v3H3zM12 7v13M12 7c-2-4-6-3-5 0M12 7c2-4 6-3 5 0"],
+  bog:["Læring","M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5"],
+  sted:["Sted","M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11zM12 8a2 2 0 1 0 0 4a2 2 0 1 0 0-4z"]
+};
+const catIcon=c=>{const k=c&&(c.icon||DEFAULT_ICON[c.id]);return ICONS[k]?k:"stjerne";};
+const icon=k=>`<svg class="icn" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-${k}"/></svg>`;
+const badge=(c,cls="")=>`<span class="badge ${cls}" style="background:${c?c.color:"#ccc"}">${icon(catIcon(c))}</span>`;
 const HOLIDAY_CAT="ferie";
 
 /* ---------- date helpers (UTC to dodge DST) ---------- */
@@ -270,6 +317,7 @@ try{const h=JSON.parse(localStorage.getItem("cx-wheel-hidden")||"[]");h.forEach(
 const $=id=>document.getElementById(id);
 const svg=$("wheel"),gRot=$("rot"),gFix=$("fixed");
 const NS="http://www.w3.org/2000/svg";
+$("sprite").innerHTML=Object.entries(ICONS).map(([k,[,d]])=>`<symbol id="i-${k}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></symbol>`).join("");
 
 /* geometry */
 const R={qOut:505,qIn:462,mOut:456,mIn:404,dOut:398,dIn:372,cOut:362,cIn:128};
@@ -308,7 +356,7 @@ function render(){
   vc.forEach((c,i)=>{const r=ringFor(i,vc.length);
     h+=`<path class="ringhit" data-cat="${c.id}" d="${arc(0,359.99,r.o,r.i)}" fill="rgba(255,255,255,${i%2?.035:.06})"/>`;});
   // events
-  const evs=allEvents();
+  const evs=allEvents();let top="";
   vc.forEach((c,i)=>{const r=ringFor(i,vc.length),mid=(r.o+r.i)/2,w=r.o-r.i;
     evs.filter(e=>e.cat===c.id).forEach(e=>{
       const s=parse(e.start),en=e.end?parse(e.end):s;if(en<s)return;
@@ -316,10 +364,14 @@ function render(){
       const d0=s.getUTCFullYear()<y?0:dayOfYear(s),d1=en.getUTCFullYear()>y?n-1:dayOfYear(en);
       const tag=`class="ev" data-id="${esc(e.id)}"`;
       if(d1>d0){h+=`<path ${tag} d="${arc(angOfDay(d0)+.15,angOfDay(d1+1)-.15,mid+w*.3,mid-w*.3)}" fill="${c.color}" fill-opacity="${e.holiday?.55:.9}"/>`;}
-      else{const [cx,cy]=pt(angOfDay(d0+.5),mid);const rr=Math.min(w*.32,11);
-        h+=e.holiday?`<circle ${tag} cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${rr*.7}" fill="none" stroke="${c.color}" stroke-width="2"/>`
-                    :`<circle ${tag} cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${rr}" fill="${c.color}" stroke="#191919" stroke-width="1.5"/>`;}
+      const [cx,cy]=pt(angOfDay(d0+.5),mid),x=cx.toFixed(1),yy=cy.toFixed(1);
+      if(e.holiday){if(d1===d0)h+=`<circle ${tag} cx="${x}" cy="${yy}" r="${Math.min(w*.32,11)*.7}" fill="none" stroke="${c.color}" stroke-width="2"/>`;return;}
+      // icon disc at the start date, drawn above all arcs; the icon is kept upright in applyRot
+      const rr=Math.min(w*.42,18),sz=rr*1.2;
+      top+=`<circle ${tag} cx="${x}" cy="${yy}" r="${rr.toFixed(1)}" fill="${c.color}" stroke="#191919" stroke-width="1.5"/>`+
+        `<g class="ico" data-x="${x}" data-y="${yy}"><use href="#i-${catIcon(c)}" x="${(-sz/2).toFixed(1)}" y="${(-sz/2).toFixed(1)}" width="${sz.toFixed(1)}" height="${sz.toFixed(1)}" style="color:#191919;stroke-width:2.6"/></g>`;
     });});
+  h+=top;
   // today marker
   if(ti!==null){const a=angOfDay(ti+.5);const [x0,y0]=pt(a,R.qOut),[x1,y1]=pt(a,R.cIn);
     h+=`<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="#E3FF00" stroke-width="2.5"/>`;
@@ -337,6 +389,7 @@ function applyRot(){
   gRot.setAttribute("transform",`rotate(${S.rot})`);
   gRot.querySelectorAll(".lbl").forEach(t=>{const a=+t.dataset.a,r=+t.dataset.r;const eff=((a+S.rot)%360+360)%360;const flip=eff>90&&eff<270;
     const [x,y]=pt(a,r);t.setAttribute("transform",`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${a+(flip?180:0)})`);});
+  gRot.querySelectorAll(".ico").forEach(g=>g.setAttribute("transform",`translate(${g.dataset.x} ${g.dataset.y}) rotate(${-S.rot})`));
   updateFocus();
 }
 /* day under the pointer */
@@ -411,7 +464,7 @@ function renderMonth(){const {y,m}=S.mv;$("mvTitle").innerHTML=`${MONTHS[m]} <sp
     const list=evs.filter(e=>ds>=e.start&&ds<=(e.end||e.start)).sort((a,b)=>(b.holiday?1:0)-(a.holiday?1:0)||a.start.localeCompare(b.start));
     h+=`<div class="mv-day${wd===0||wd===6?" we":""}${ds===TODAY_ISO?" today":""}" data-date="${ds}">
       <button class="mv-n" aria-label="${S.canWrite?"Tilføj ":""}${fmtLong(d)}">${d.getUTCDate()}</button>
-      ${list.map(e=>{const c=S.cats.find(c=>c.id===e.cat);return `<button class="mv-ev${e.holiday?" hol":""}" data-open="${esc(e.id)}" style="--c:${c?c.color:"#ccc"}" title="${esc(e.title)}">${esc(e.title)}</button>`;}).join("")}</div>`;}
+      ${list.map(e=>{const c=S.cats.find(c=>c.id===e.cat);return `<button class="mv-ev${e.holiday?" hol":""}" data-open="${esc(e.id)}" style="--c:${c?c.color:"#ccc"}" title="${esc(e.title)}">${icon(catIcon(c))}${esc(e.title)}</button>`;}).join("")}</div>`;}
   $("mvGrid").innerHTML=h;}
 $("mvGrid").addEventListener("click",ev=>{const o=ev.target.closest("[data-open]");
   if(o){const e=S.events.find(x=>x.id===o.dataset.open);if(e)openEvent(e.id);else F.msg.textContent=`${o.textContent} er en fast helligdag og beregnes automatisk.`;return;}
@@ -424,28 +477,31 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&S.mv&&!e.target.clo
 /* ---------- panel ---------- */
 function renderPanel(){
   $("tDate").textContent=fmtLong(TODAY)+" "+TODAY.getUTCFullYear();$("tWeek").textContent=isoWeek(TODAY);$("tQ").textContent="Q"+quarter(TODAY);
-  // category select
-  const sel=$("fCat"),cur=sel.value;sel.innerHTML=S.cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");if(cur&&S.cats.some(c=>c.id===cur))sel.value=cur;
+  // category picker (radios with icons)
+  const cur=F.cat.value;
+  $("fCat").innerHTML=S.cats.map(c=>`<label><input type="radio" name="cat" value="${c.id}"${S.canWrite?"":" disabled"}>${badge(c)}${esc(c.name)}</label>`).join("");
+  F.cat.value=cur&&S.cats.some(c=>c.id===cur)?cur:S.cats[0].id;
   // categories
   const counts={};S.events.forEach(e=>counts[e.cat]=(counts[e.cat]||0)+1);
   $("catList").innerHTML=S.cats.map(c=>{
     if(S.catEdit===c.id)return catEditor(c);
-    return `<div class="cat ${S.hidden.has(c.id)?"off":""}"><span class="sw" style="background:${c.color}"></span>
+    return `<div class="cat ${S.hidden.has(c.id)?"off":""}">${badge(c)}
       <button class="mini nm" data-toggle="${c.id}" style="text-align:left;color:inherit;font:500 14px var(--f-body);padding:0">${esc(c.name)}</button>
       <span class="ct">${counts[c.id]||0}</span>
-      ${S.canWrite?`<button class="mini" data-edit="${c.id}">Redigér</button>`:"<span></span>"}</div>`;}).join("")+(S.catEdit==="__new"?catEditor({id:"__new",name:"",color:SWATCHES[S.cats.length%SWATCHES.length]}):"");
+      ${S.canWrite?`<button class="mini" data-edit="${c.id}">Redigér</button>`:"<span></span>"}</div>`;}).join("")+(S.catEdit==="__new"?catEditor({id:"__new",name:"",color:SWATCHES[S.cats.length%SWATCHES.length],icon:"stjerne"}):"");
   $("addCat").hidden=!S.canWrite||S.cats.length>=8;
   // upcoming
   const up=allEvents().filter(e=>(e.end||e.start)>=TODAY_ISO).sort((a,b)=>a.start.localeCompare(b.start)).slice(0,12);
   $("upCount").textContent=S.events.length?`${S.events.length} i hjulet`:"";
   $("upList").innerHTML=up.length?up.map(e=>{const s=parse(e.start),c=S.cats.find(c=>c.id===e.cat);
     return `<button class="item" data-open="${esc(e.id)}"><span class="d">${s.getUTCDate()}<small>${MSHORT[s.getUTCMonth()]}${s.getUTCFullYear()!==TODAY.getUTCFullYear()?" "+String(s.getUTCFullYear()).slice(2):""}</small></span>
-      <span style="min-width:0"><span class="t">${esc(e.title)}</span><span class="m"><span class="sw" style="background:${c?c.color:"#ccc"}"></span>${esc(c?c.name:"")}${e.end&&e.end!==e.start?" · til "+fmtShort(parse(e.end)):""}${e.holiday?" · helligdag":""}</span></span></button>`;}).join("")
+      <span style="min-width:0"><span class="t">${esc(e.title)}</span><span class="m">${badge(c,"sm")}${esc(c?c.name:"")}${e.end&&e.end!==e.start?" · til "+fmtShort(parse(e.end)):""}${e.holiday?" · helligdag":""}</span></span></button>`;}).join("")
     :`<p class="empty">Intet planlagt endnu. Tilføj den første aftale ovenfor, eller klik direkte på en ring i hjulet.</p>`;
 }
 function catEditor(c){return `<div class="catedit" data-catform="${c.id}">
   <input id="catName-${c.id}" value="${esc(c.name)}" maxlength="40" placeholder="Navn på kategori" aria-label="Navn på kategori">
   <span style="display:flex;gap:6px"><button class="btn" data-catsave="${c.id}" style="padding:9px 14px">Gem</button><button class="btn ghost" data-catcancel style="padding:9px 14px">Luk</button></span>
+  <div class="icons">${Object.entries(ICONS).map(([k,[lbl]])=>`<button type="button" data-ic="${k}" aria-label="Ikon: ${lbl}" title="${lbl}" aria-pressed="${k===catIcon(c)}">${icon(k)}</button>`).join("")}</div>
   <div class="swatches">${SWATCHES.map(s=>`<button type="button" data-sw="${s}" aria-label="Farve ${s}" aria-pressed="${s===c.color}" style="background:${s}"></button>`).join("")}
   ${c.id!=="__new"&&c.id!==HOLIDAY_CAT?`<button class="mini" data-catdel="${c.id}" style="margin-left:auto;color:var(--orange)">Slet kategori</button>`:""}</div></div>`;}
 
@@ -455,10 +511,12 @@ $("catList").addEventListener("click",async ev=>{const b=ev.target.closest("butt
   if(b.dataset.edit){S.catEdit=b.dataset.edit;renderPanel();}
   if(b.hasAttribute("data-catcancel")){S.catEdit=null;renderPanel();}
   if(b.dataset.sw){b.parentElement.querySelectorAll("[data-sw]").forEach(x=>x.setAttribute("aria-pressed",x===b));}
+  if(b.dataset.ic){b.parentElement.querySelectorAll("[data-ic]").forEach(x=>x.setAttribute("aria-pressed",x===b));}
   if(b.dataset.catsave){const id=b.dataset.catsave,box=b.closest(".catedit");const name=box.querySelector("input").value.trim();if(!name)return;
-    const color=(box.querySelector('[aria-pressed="true"]')||{}).dataset?.sw||SWATCHES[0];
+    const color=(box.querySelector('.swatches [aria-pressed="true"]')||{}).dataset?.sw||SWATCHES[0];
+    const ic=(box.querySelector('.icons [aria-pressed="true"]')||{}).dataset?.ic||"stjerne";
     let cats=S.cats.map(c=>({...c}));
-    if(id==="__new"){cats.push({id:"c"+Date.now().toString(36),name,color});}else{const c=cats.find(c=>c.id===id);c.name=name;c.color=color;}
+    if(id==="__new"){cats.push({id:"c"+Date.now().toString(36),name,color,icon:ic});}else{const c=cats.find(c=>c.id===id);c.name=name;c.color=color;c.icon=ic;}
     S.catEdit=null;await saveCats(cats);}
   if(b.dataset.catdel){const id=b.dataset.catdel;if(S.events.some(e=>e.cat===id)){b.textContent="Flyt eller slet aftalerne i kategorien først";return;}
     S.catEdit=null;await saveCats(S.cats.filter(c=>c.id!==id));}
@@ -468,8 +526,13 @@ $("upList").addEventListener("click",ev=>{const b=ev.target.closest("[data-open]
   const s=parse(e.start);if(s.getUTCFullYear()!==S.year){S.year=s.getUTCFullYear();setYear();}rotateTo(rotForDay(dayOfYear(s)),600);if(!e.holiday)openEvent(e.id);});
 
 /* ---------- form ---------- */
-const F={title:$("fTitle"),start:$("fStart"),end:$("fEnd"),cat:$("fCat"),note:$("fNote"),save:$("fSave"),cancel:$("fCancel"),del:$("fDelete"),msg:$("fMsg")};
-function resetForm(){S.editing=null;$("evForm").reset();F.start.value=TODAY_ISO;F.save.textContent="Tilføj";F.cancel.hidden=true;F.del.hidden=true;$("formHead").textContent="Tilføj til hjulet";F.msg.textContent="";lockForm();}
+const catPick={
+  get value(){const r=$("fCat").querySelector("input:checked");return r?r.value:"";},
+  set value(v){const r=[...$("fCat").querySelectorAll("input")].find(x=>x.value===v);if(r)r.checked=true;},
+  set disabled(d){$("fCat").querySelectorAll("input").forEach(x=>x.disabled=d);}
+};
+const F={title:$("fTitle"),start:$("fStart"),end:$("fEnd"),cat:catPick,note:$("fNote"),save:$("fSave"),cancel:$("fCancel"),del:$("fDelete"),msg:$("fMsg")};
+function resetForm(){S.editing=null;$("evForm").reset();F.start.value=TODAY_ISO;if(!F.cat.value&&S.cats.length)F.cat.value=S.cats[0].id;F.save.textContent="Tilføj";F.cancel.hidden=true;F.del.hidden=true;$("formHead").textContent="Tilføj til hjulet";F.msg.textContent="";lockForm();}
 function lockForm(){const ro=!S.canWrite;[F.title,F.start,F.end,F.cat,F.note,F.save,F.del].forEach(x=>x.disabled=ro);if(ro)F.msg.textContent="Du har læseadgang. Bed ejeren om Contributor-adgang for at skrive i hjulet.";}
 function newAt(date,cat){resetForm();F.start.value=date;F.cat.value=cat;$("formHead").textContent=`Tilføj ${fmtShort(parse(date))}`;F.title.focus({preventScroll:false});F.title.scrollIntoView({block:"center",behavior:"smooth"});}
 function openEvent(id){const e=allEvents().find(x=>x.id===id);if(!e)return;

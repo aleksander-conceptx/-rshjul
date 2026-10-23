@@ -39,8 +39,10 @@ function cleanEvent(b) {
 function cleanCats(b) {
   const list = b?.list;
   if (!Array.isArray(list) || list.length < 1 || list.length > 8) return null;
-  const out = list.map((c) => ({ id: String(c?.id ?? ""), name: String(c?.name ?? "").trim().slice(0, 40), color: String(c?.color ?? "") }));
-  return out.every((c) => ID.test(c.id) && c.name && COLOR.test(c.color)) ? out : null;
+  const out = list.map((c) => ({
+    id: String(c?.id ?? ""), name: String(c?.name ?? "").trim().slice(0, 40), color: String(c?.color ?? ""), icon: String(c?.icon ?? ""),
+  }));
+  return out.every((c) => ID.test(c.id) && c.name && COLOR.test(c.color) && /^[a-z]{0,20}$/.test(c.icon)) ? out : null;
 }
 
 // Read-modify-write with an etag check, so two people saving at once don't overwrite each other.
